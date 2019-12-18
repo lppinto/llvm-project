@@ -3378,8 +3378,11 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
     return Right.is(TT_TemplateCloser) && Left.is(TT_TemplateCloser) &&
            (Style.Standard < FormatStyle::LS_Cpp11 || Style.SpacesInAngles);
   }
-  if (Right.isOneOf(tok::arrow, tok::arrowstar, tok::periodstar) ||
-      Left.isOneOf(tok::arrow, tok::period, tok::arrowstar, tok::periodstar) ||
+  if (Left.is(tok::arrow) || Right.is(tok::arrow)) {
+    return Style.SpaceBeforeAndAfterArrows;
+  }
+  if (Right.isOneOf(tok::arrowstar, tok::periodstar) ||
+      Left.isOneOf(tok::period, tok::arrowstar, tok::periodstar) ||
       (Right.is(tok::period) && Right.isNot(TT_DesignatedInitializerPeriod)))
     return false;
   if (!Style.SpaceBeforeAssignmentOperators && Left.isNot(TT_TemplateCloser) &&
@@ -3391,7 +3394,8 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
   if (Right.is(tok::coloncolon) && Left.is(tok::identifier))
     // Generally don't remove existing spaces between an identifier and "::".
     // The identifier might actually be a macro name such as ALWAYS_INLINE. If
-    // this turns out to be too lenient, add analysis of the identifier itself.
+    // this turns out to be too lenient, add analysis of the identifier
+    // itself.
     return Right.WhitespaceRange.getBegin() != Right.WhitespaceRange.getEnd();
   if (Right.is(tok::coloncolon) &&
       !Left.isOneOf(tok::l_brace, tok::comment, tok::l_paren))
@@ -3432,7 +3436,8 @@ bool TokenAnnotator::spaceRequiredBefore(const AnnotatedLine &Line,
   return spaceRequiredBetween(Line, Left, Right);
 }
 
-// Returns 'true' if 'Tok' is a brace we'd want to break before in Allman style.
+// Returns 'true' if 'Tok' is a brace we'd want to break before in Allman
+// style.
 static bool isAllmanBrace(const FormatToken &Tok) {
   return Tok.is(tok::l_brace) && Tok.is(BK_Block) &&
          !Tok.isOneOf(TT_ObjCBlockLBrace, TT_LambdaLBrace, TT_DictLiteral);
@@ -3510,8 +3515,9 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
         // kw_var/kw_let are pseudo-tokens that are tok::identifier, so match
         // above.
         !Line.First->isOneOf(Keywords.kw_var, Keywords.kw_let))
-      // Object literals on the top level of a file are treated as "enum-style".
-      // Each key/value pair is put on a separate line, instead of bin-packing.
+      // Object literals on the top level of a file are treated as
+      // "enum-style". Each key/value pair is put on a separate line, instead
+      // of bin-packing.
       return true;
     if (Left.is(tok::l_brace) && Line.Level == 0 &&
         (Line.startsWith(tok::kw_enum) ||
@@ -3562,8 +3568,8 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
   }
 
   // If the last token before a '}', ']', or ')' is a comma or a trailing
-  // comment, the intention is to insert a line break after it in order to make
-  // shuffling around entries easier. Import statements, especially in
+  // comment, the intention is to insert a line break after it in order to
+  // make shuffling around entries easier. Import statements, especially in
   // JavaScript, can be an exception to this rule.
   if (Style.JavaScriptWrapImports || Line.Type != LT_ImportStatement) {
     const FormatToken *BeforeClosingBrace = nullptr;
@@ -3667,18 +3673,17 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
   if (Right.is(TT_ProtoExtensionLSquare))
     return true;
 
-  // In text proto instances if a submessage contains at least 2 entries and at
-  // least one of them is a submessage, like A { ... B { ... } ... },
-  // put all of the entries of A on separate lines by forcing the selector of
-  // the submessage B to be put on a newline.
+  // In text proto instances if a submessage contains at least 2 entries and
+  // at least one of them is a submessage, like A { ... B { ... } ... }, put
+  // all of the entries of A on separate lines by forcing the selector of the
+  // submessage B to be put on a newline.
   //
   // Example: these can stay on one line:
   // a { scalar_1: 1 scalar_2: 2 }
   // a { b { key: value } }
   //
-  // and these entries need to be on a new line even if putting them all in one
-  // line is under the column limit:
-  // a {
+  // and these entries need to be on a new line even if putting them all in
+  // one line is under the column limit: a {
   //   scalar: 1
   //   b { key: value }
   // }
@@ -3687,11 +3692,12 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
   // siblings, *and* breaking before a field that follows a submessage field.
   //
   // Be careful to exclude the case  [proto.ext] { ... } since the `]` is
-  // the TT_SelectorName there, but we don't want to break inside the brackets.
+  // the TT_SelectorName there, but we don't want to break inside the
+  // brackets.
   //
   // Another edge case is @submessage { key: value }, which is a common
-  // substitution placeholder. In this case we want to keep `@` and `submessage`
-  // together.
+  // substitution placeholder. In this case we want to keep `@` and
+  // `submessage` together.
   //
   // We ensure elsewhere that extensions are always on their own line.
   if ((Style.Language == FormatStyle::LK_Proto ||
@@ -3728,11 +3734,12 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
            (LBrace->Next && LBrace->Next->is(tok::r_brace)))) ||
          LBrace->is(TT_ArrayInitializerLSquare) || LBrace->is(tok::less))) {
       // If Left.ParameterCount is 0, then this submessage entry is not the
-      // first in its parent submessage, and we want to break before this entry.
-      // If Left.ParameterCount is greater than 0, then its parent submessage
-      // might contain 1 or more entries and we want to break before this entry
-      // if it contains at least 2 entries. We deal with this case later by
-      // detecting and breaking before the next entry in the parent submessage.
+      // first in its parent submessage, and we want to break before this
+      // entry. If Left.ParameterCount is greater than 0, then its parent
+      // submessage might contain 1 or more entries and we want to break
+      // before this entry if it contains at least 2 entries. We deal with
+      // this case later by detecting and breaking before the next entry in
+      // the parent submessage.
       if (Left.ParameterCount == 0)
         return true;
       // However, if this submessage is the first entry in its parent
@@ -3752,9 +3759,10 @@ bool TokenAnnotator::mustBreakBefore(const AnnotatedLine &Line,
       return true;
   }
 
-  // Deal with lambda arguments in C++ - we want consistent line breaks whether
-  // they happen to be at arg0, arg1 or argN. The selection is a bit nuanced
-  // as aggressive line breaks are placed when the lambda is not the last arg.
+  // Deal with lambda arguments in C++ - we want consistent line breaks
+  // whether they happen to be at arg0, arg1 or argN. The selection is a bit
+  // nuanced as aggressive line breaks are placed when the lambda is not the
+  // last arg.
   if ((Style.Language == FormatStyle::LK_Cpp ||
        Style.Language == FormatStyle::LK_ObjC) &&
       Left.is(tok::l_paren) && Left.BlockParameterCount > 0 &&
@@ -3890,9 +3898,9 @@ bool TokenAnnotator::canBreakBefore(const AnnotatedLine &Line,
   if (Right.isTrailingComment())
     // We rely on MustBreakBefore being set correctly here as we should not
     // change the "binding" behavior of a comment.
-    // The first comment in a braced lists is always interpreted as belonging to
-    // the first list element. Otherwise, it should be placed outside of the
-    // list.
+    // The first comment in a braced lists is always interpreted as belonging
+    // to the first list element. Otherwise, it should be placed outside of
+    // the list.
     return Left.is(BK_BracedInit) ||
            (Left.is(TT_CtorInitializerColon) &&
             Style.BreakConstructorInitializers == FormatStyle::BCIS_AfterColon);

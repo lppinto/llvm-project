@@ -2118,6 +2118,13 @@ struct FormatStyle {
   /// \endcode
   bool SpaceBeforeAssignmentOperators;
 
+  /// If ``false``, spaces will removed before and after arrow
+  /// \code
+  ///    true:                                  false:
+  ///    object -> member               vs      object->member
+  /// \endcode
+  bool SpaceBeforeAndAfterArrows;
+
   /// If ``true``, a space will be inserted before a C++11 braced list
   /// used to initialize an object (after the preceding identifier or type).
   /// \code
@@ -2496,6 +2503,7 @@ struct FormatStyle {
            SpaceAfterCStyleCast == R.SpaceAfterCStyleCast &&
            SpaceAfterLogicalNot == R.SpaceAfterLogicalNot &&
            SpaceAfterTemplateKeyword == R.SpaceAfterTemplateKeyword &&
+           SpaceBeforeAndAfterArrows == R.SpaceBeforeAndAfterArrows &&
            SpaceBeforeAssignmentOperators == R.SpaceBeforeAssignmentOperators &&
            SpaceBeforeCpp11BracedList == R.SpaceBeforeCpp11BracedList &&
            SpaceBeforeCtorInitializerColon ==
